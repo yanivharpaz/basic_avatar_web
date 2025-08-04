@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <div id="videoContainer"></div>
+  <textarea id="inputText" placeholder="Type text..."></textarea>
+  <button id="speakBtn">Speak</button>
+  <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+  <script>
+    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription("KEY","REGION");
+    speechConfig.speechSynthesisVoiceName = "en-US-AvaMultilingualNeural";
+    const avatarConfig = new SpeechSDK.AvatarConfig("lisa","casual-sitting");
+
+    async function initAvatar() {
+      const tokenResp = await fetch('/relay_token');
+      const token = await tokenResp.json();
+      const pc = new RTCPeerConnection({iceServers: token.iceServers});
+
+      const synthesizer = new SpeechSDK.AvatarSynthesizer(speechConfig, avatarConfig);
+      await synthesizer.startAvatarAsync(pc);
+
+      pc.ontrack = evt => {
+        const el = evt.track.kind === 'video' ? document.createElement('video') : document.createElement('audio');
+        el.srcObject = evt.streams[0];
+        el.autoplay = true;
+        document.getElementById('videoContainer').appendChild(el);
+      };
+      return synthesizer;
+    }
+
+    let avatar;
+    initAvatar().then(s => avatar = s);
+
+    document.getElementById("speakBtn").onclick = () => {
+      const text = document.getElementById("inputText").value;
+      if (avatar && text.trim())
+        avatar.speakTextAsync(text);
+    };
+  </script>
+</body>
+</html>

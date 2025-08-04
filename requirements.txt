@@ -1,0 +1,24 @@
+# openai
+# dotenv
+chainlit
+requests
+pillow
+# ollama
+# google.generativeai
+# pyyaml
+# autogen
+# autogen_ext
+# autogen_core
+# autogen_agentchat
+# anthropic
+
+ipykernel
+
+# jupyterlab
+# jupyterlab-git
+
+python-dotenv 
+azure-identity 
+requests
+
+flask 

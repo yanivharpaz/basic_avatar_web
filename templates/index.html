@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Azure Avatar Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f8f8f8;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            background: #0078d4;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #005fa3;
+        }
+
+        #status {
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #0078d4;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 15px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Progress bar */
+        .progress-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 10px;
+            margin-top: 15px;
+            overflow: hidden;
+            height: 20px;
+        }
+
+        .progress-bar {
+            height: 20px;
+            background-color: #0078d4;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        #timer {
+            font-size: 14px;
+            margin-top: 5px;
+            color: #555;
+        }
+
+        #video-container {
+            margin-top: 25px;
+        }
+    </style>
+
+    <script>
+        let pollInterval;
+        let progressTimer;
+        let countdownTimer;
+        let progressValue = 0;
+        let timeRemaining = 45; // estimated seconds to finish
+
+        function startJob() {
+            const text = document.getElementById("text-input").value;
+            if (!text.trim()) {
+                alert("Please enter some text");
+                return;
+            }
+
+            // Reset UI
+            document.getElementById("status").innerText = "Submitting job...";
+            document.getElementById("video-container").innerHTML = "";
+            document.getElementById("spinner").style.display = "block";
+            document.getElementById("timer").innerText = "";
+            progressValue = 0;
+            timeRemaining = 45;
+            updateProgressBar(0);
+
+            // Start fake progress
+            progressTimer = setInterval(() => {
+                if (progressValue < 90) { 
+                    progressValue += Math.random() * 5;
+                    updateProgressBar(progressValue);
+                }
+            }, 1000);
+
+            // Start countdown
+            countdownTimer = setInterval(() => {
+                if (timeRemaining > 0) {
+                    document.getElementById("timer").innerText = `~${timeRemaining} seconds remaining`;
+                    timeRemaining--;
+                } else {
+                    document.getElementById("timer").innerText = "Almost done...";
+                }
+            }, 1000);
+
+            // Send request
+            fetch("/start_job", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({text: text})
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("status").innerText = "Generating avatar...";
+                pollInterval = setInterval(() => checkJob(data.job_id), 5000);
+            });
+        }
+
+        function checkJob(job_id) {
+            fetch(`/check_job/${job_id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "Succeeded") {
+                        stopTimers();
+                        updateProgressBar(100);
+                        document.getElementById("spinner").style.display = "none";
+                        document.getElementById("status").innerText = "Avatar ready!";
+                        document.getElementById("timer").innerText = "";
+                        document.getElementById("video-container").innerHTML =
+                            `<video width="640" controls>
+                                <source src="${data.video_url}" type="video/mp4">
+                                Your browser does not support the video tag.
+                             </video>`;
+                    } else if (data.status === "Failed") {
+                        stopTimers();
+                        document.getElementById("spinner").style.display = "none";
+                        document.getElementById("status").innerText = "Error: Avatar generation failed.";
+                        document.getElementById("timer").innerText = "";
+                    } else {
+                        document.getElementById("status").innerText = "Processing...";
+                    }
+                });
+        }
+
+        function updateProgressBar(value) {
+            document.querySelector(".progress-bar").style.width = value + "%";
+        }
+
+        function stopTimers() {
+            clearInterval(pollInterval);
+            clearInterval(progressTimer);
+            clearInterval(countdownTimer);
+        }
+    </script>
+</head>
+<body>
+    <h1>Azure Avatar Demo</h1>
+    <textarea id="text-input" rows="4" placeholder="Enter text for avatar to speak..."></textarea><br>
+    <button onclick="startJob()">Generate Avatar</button>
+
+    <p id="status"></p>
+    <div id="spinner" class="spinner" style="display:none;"></div>
+    <div class="progress-container">
+        <div class="progress-bar"></div>
+    </div>
+    <div id="timer"></div>
+
+    <div id="video-container"></div>
+</body>
+</html>
